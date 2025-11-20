@@ -104,3 +104,13 @@ Now the build directory will create both the static C++ library file `libLAAT_MB
 # How to cite this work
 The manuscript associated with this software has been pusblished on 2022.
 DOI: https://doi.org/10.1016/j.ascom.2022.100658
+
+
+################################################################################################################################
+
+This branch of the 1DREAM code is dedicated to implement two main variations to the original:
+	1. LAAT : Initialization of ants positions within a pool of candidates, selected by ID;
+	2. LAAT : Additional criterion for the construction of jump probabilities. Ants can be informed by:
+		a. local alignment (original - PCA);
+		b. density (original);
+		c. external field, provided by user (NEW!)
