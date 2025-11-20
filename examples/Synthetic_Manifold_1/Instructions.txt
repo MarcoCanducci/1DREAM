@@ -1,0 +1,35 @@
+############# DATA ##################
+
+
+This is a manifold built by three substructures. Two arms and one head in the middle. All of them has the same amount of points, 
+namely, 10000. The manifold is submerged in 10000 points of noise, distribuited uniformly. The file containing the data is called "Synthetic_Manifold_1.csv" and it is localized in the "Synthetic_Manifold_1" folder (here).
+
+
+############# RUNNING 1DREAM ##################
+
+
+To run this example you can follow the next steps.
+
+1.- In the "LAAT" folder, run the script "run_LAAT.py" for Linux, or run the "WINDOWS_LAAT.py" for WINDOWS if you already created the LAAT.exe file. It will generate in the "Output" folder a file called "LAAT_output_pheromone.csv". This file will contain the pheromone level of every particle at the end of LAAT.
+
+2.- To filter the data, you can run the script "pheromone_thresholding.py" localized in the "LAAT" directory. It will generate 2 files. One will contain the parameters used and a resume of the results, while the other will contain the data filtered using the pheromone of LAAT. This last file will be called "LAAT_output_selected_data.csv".
+
+3.- Now you can run MBMS using the file "LAAT_output_selected_data.csv". To perform this, in the folder "MBMS" you can run the script "run_MBMS.py". It will generate a file called "MBMS_output.csv" (in the "Output" folder), which will contain the particles displaced towards the centers of the structures in the data, according to the MBMS method.
+
+4.- Now you can run DimIndex. Go to the folder DimIndex, and run the script "run_DimIndex.py". It .py file will generate two .csv files, namely, the dimensionality indexes and the data filtered by those indexes. Index 0 corresponds to 1D structures, index 1 to 2D structures, and index 2 to 3D structures. We only choose the particles with an index equal to 0, i.e. 1D structures. The output file is localized in the "Output" folder and is named "Selected_data_after_DimIndex.csv".
+
+5.- Now you can run Crawling. Go to the folder "Crawling", and run the script "run_Crawling.py". Crawling uses random parameters, so the output is variable. It generates two groups of files, both inside of the "Output" folder. The first group of files is called "Nodeposx.csv" (x is a number from 1 to N, where N is the number of 1D structures in your data). Here you can find the positions of the nodes constructing the graphs (i.e., skeletons or a group of nodes connected together by edges) that model your structures. The second group of files is called "Subsetx.csv" which is the collection of subsets of data points surrounding your graphs. Therefore, there are as many files as skeletons found by Crawling. We also export all output of Crawling in a binary file "Crawling_output.pkl" so that all properties of the graphs (like the indices of their nodes, their adjacency matrix, lengths of the edges... etc) can be reused later. 
+
+
+6.- Now you can run SGTM. Go to the folder SGTM, and run the script "run_SGTM.py". SGTM will model the structures in the data, each, as a mixture of Gaussian distributions. It will train the centers, covariance matrices, and the weights of these distributions to best fit the data. It will generate a file with the positions of the centers of the trained Gaussians called "SGTM_positions_node_x.csv" (x is a number from 1 to N, where N is the number of 1D structures in your data). We also export all output of SGTM in the binary file "SGTM_output.pkl" to make use of all the properties of the Gaussian Mixture Model (GMM) created. 
+e.g: in the plotting file "plot_SGTM.py" we show how to get the likelihoods of each point in the data to belong to a modeled structure.
+
+
+############# VISUALIZATION ##################
+
+For matplotlib use at least version 3.2.1, previous versions might not work.
+
+Similar to the previous steps, we can run the plot files inside of every tool folder. So for example, to run the visualization of DimIndex, just go to the "DimIndex" folder, and run the file "DimIndex_plot.py" (obviously after having obtained the output of "run_DimIndex.py"). The output of this image is shown on the screen and also is stored inside the "Images" folder.
+
+
+

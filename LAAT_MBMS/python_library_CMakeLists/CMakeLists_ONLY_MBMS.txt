@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.10)
+
+project(LAAT_MBMS VERSION 1.3.2)
+
+# Eigen
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/ext/eigen")
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_FLAGS "-O3 -Wall -fPIC")
+
+add_library(LAAT_MBMSlib
+		src/lib/MBMS/denoise.cpp
+    src/lib/MBMS/dimensionalityapproximation.cpp
+    src/lib/MBMS/kernelfunmean.cpp
+    src/lib/MBMS/localpca.cpp
+    src/lib/MBMS/MBMS.cpp
+)
+
+# add include directories to use when compiling the target
+target_include_directories(LAAT_MBMSlib PRIVATE ext)
+target_include_directories(LAAT_MBMSlib PUBLIC src/lib)
+
+target_link_libraries(LAAT_MBMSlib Eigen3::Eigen)
+
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/ext/pybind11")
+pybind11_add_module(LAAT_MBMS src/python_bindings/bindings_ONLY_MBMS.cpp)
+target_link_libraries(LAAT_MBMS PRIVATE LAAT_MBMSlib)

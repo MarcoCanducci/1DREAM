@@ -1,0 +1,61 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+LAAT_MBMS/build/
+Crawling/Python/__pycache__/
+DimIndex/Python/__pycache__/
+SGTM/Python/__pycache__/
+__pycache__/*
+LAAT_MBMS/Input
+LAAT_MBMS/bin
+LAAT_MBMS/Output
+LAAT_MBMS/src/lib/LAAT/Respaldo/
+LAAT_MBMS/Images/
+LAAT_MBMS/LAAT_bin/
+LAAT_MBMS/MBMS_bin/
+LAAT_MBMS/Tests/
+LAAT_MBMS/create_input_data/
+
+# Examples
+examples/rory/
+examples/Arianna/
+examples/test/
+
+# Vscode
+.vscode/
+
+
+
+
+# EM3A
+EM3A/
