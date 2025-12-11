@@ -46,13 +46,13 @@ void manifoldBlurringMeanShift(vector<vector<float>> &data,
     for (size_t idx = 0; idx < data.size(); ++idx)
     {
       //printf("%d, %f , %f, %f\n",idx,data[idx][0],data[idx][1],data[idx][2]);
-      vector<pair<size_t, float>> matches;
+      vector<nanoflann::ResultItem<size_t, float>> matches;
 
       // find neighbours
       size_t nMatches = KNN.index->radiusSearch(&data[idx][0],
 						radius * radius,
 						matches,
-						nanoflann::SearchParams());
+						nanoflann::SearchParameters());
 
       vector<size_t> neighbours;  // stores indices of neighbours
       if (nMatches >= k)         // found a sufficient number of neighbours
@@ -70,7 +70,7 @@ void manifoldBlurringMeanShift(vector<vector<float>> &data,
 	resultSet.init(&retIndices[0], &distsSqr[0]);
 
 	KNN.index->findNeighbors(
-	  resultSet, &data[idx][0], nanoflann::SearchParams(10));
+	  resultSet, &data[idx][0], nanoflann::SearchParameters(10));
 	for (unsigned int i = 0; i < k; ++i)
 	  neighbours[i] = retIndices[i];
       }

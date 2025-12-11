@@ -7,10 +7,6 @@
 #define _SUCCESS_ 0 /* integer returned after successful call of a function */
 #define _FAILURE_ 1 /* integer returnd after failure in a function */
 
-
-
-#define _GLOBAL_SEED_ 0
-
 #include <vector>
 #include <array>
 #include <numeric>
@@ -26,7 +22,11 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#ifdef _WIN32
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 //#include "Eigen/Core"
 #include "Eigen/SVD"
@@ -101,6 +101,8 @@ size_t reading_data(int argc, char *argv[], vector<vector<float>> &data,
 	size_t &dynamic_radius_actived,
 	size_t &th_neighb,
 	float &kappa,
+	float &gamma,
+	size_t &initialization_mode,
   size_t &numberofthreads,
 	string &output_file_address);
 
@@ -118,6 +120,10 @@ std::vector<float> LocallyAlignedAntTechnique(
   size_t dynamic_radius_actived,
   size_t th_neighb,
   float kappa,
+  float gamma,
+  std::vector<float> const &external_weights,
+  size_t initialization_mode,
+  std::vector<size_t> const &custom_init_indices,
   size_t numberofthreads);
 
 // preprocessing functions
@@ -172,18 +178,22 @@ void computing_initial_particle_properties(std::vector<std::vector<float>> const
 // iterative functions
 void initializeAnts(std::vector<size_t> &antLocations,
 			std::vector<pair<float,size_t>> &probability_std,
-			size_t idx_epoch);
+			size_t idx_epoch,
+			size_t initialization_mode,
+			std::vector<size_t> const &custom_init_indices);
 			
 void antSearch(std::vector<std::vector<float>> const &data,
 	      std::vector<std::vector<size_t>> const &neighbourhoods,
 	      std::vector<size_t> const &antLocations,
 	      size_t numberOfSteps,
 	      float kappa,
+	      float gamma,
   	    std::vector<float> &pheromone,
 		   	float pheromone_delivered,
 		   	std::vector<size_t> &interesting_particle,
 		   	std::vector<std::vector<float>> &preferences,
 		   	std::vector<std::vector<float>> &quality_pheromone,
+		   	std::vector<float> const &external_weights,
 				size_t idx_epoch);
 
 void antsearch_DynamicRadius(std::vector<std::vector<float>> const &data,
@@ -191,17 +201,17 @@ void antsearch_DynamicRadius(std::vector<std::vector<float>> const &data,
 	      			std::vector<size_t> &antLocations,
 	      			size_t numberOfSteps,
 	      			float kappa,
+	      			float gamma,
 							std::vector<float> &pheromone,
 	      			float pheromone_delivered,
         			std::vector<size_t> &interesting_particle,
         			std::vector<std::vector<std::vector<std::vector<float>>>> &pso_eigenVectors,
         			std::vector<std::vector<std::vector<float>>> &pso_eigenValues,
         			std::vector<std::vector<size_t>> &pso_neigbourhoods_number,
-		          std::vector<std::vector<float>> &pso_radii_accumulated_probabilities,
+	          std::vector<std::vector<float>> &pso_radii_accumulated_probabilities,
 							size_t pso_number_particles,
-							size_t idx_epoch);
-
-void evaporatePheromone(std::vector<float> &pheromone);
+							std::vector<float> const &external_weights,
+							size_t idx_epoch);void evaporatePheromone(std::vector<float> &pheromone);
 
 // functions to communicate with the user
 void initializeProgressBar(size_t size);
@@ -210,5 +220,17 @@ void completeProgressBar();
 
 float floatRand(size_t a);
 size_t sizetRand(size_t a, size_t max_value);
+
+// Markov Chain approximation of LAAT
+std::vector<float> LocallyAlignedAntTechnique_MarkovChain(
+    std::vector<std::vector<float>> const &data,
+    size_t th_neighb,
+    float neighbdradii,
+    float kappa,
+    float gamma,
+    std::vector<float> const &external_weights,
+    float tolerance,
+    size_t max_iterations,
+    size_t numberofthreads);
 
 #endif

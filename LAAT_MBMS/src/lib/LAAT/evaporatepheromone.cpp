@@ -16,7 +16,7 @@ void evaporatePheromone(vector<float> &pheromone)
 {
   float newPheromone;
   #pragma omp parallel for private(newPheromone)
-  for (size_t i = 0; i < pheromone.size(); ++i)
+  for (long long i = 0; i < static_cast<long long>(pheromone.size()); ++i)
   {
     newPheromone = (1 - evapRate) * pheromone[i];
 

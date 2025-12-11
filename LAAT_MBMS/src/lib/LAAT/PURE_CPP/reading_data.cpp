@@ -10,20 +10,23 @@ size_t reading_data(int argc, char *argv[], vector<vector<float>> &data,
 	size_t &dynamic_radius_actived,
 	size_t &th_neighb,
 	float &kappa,
+	float &gamma,
+	size_t &initialization_mode,
   size_t &numberofthreads,
 	string &output_file_address)
 {
 	vector<pair<string,size_t>> paramters_names{{"numberOfAnts",0} , 
-																							{"numberOfIterations",0} , 
-																							{"numberOfSteps",0},
-																							{"pso_number_particles",0},
-																							{"pso_min_radii",1},
-																							{"pso_max_radii",1},
-																							{"dynamic_radius_actived",0},
-																							{"th_neighb",0} , 
-																							{"kappa",1} , 
-																							{"numberofthreads",0}};
-
+												{"numberOfIterations",0} , 
+												{"numberOfSteps",0},
+												{"pso_number_particles",0},
+												{"pso_min_radii",1},
+												{"pso_max_radii",1},
+												{"dynamic_radius_actived",0},
+												{"th_neighb",0} , 
+												{"kappa",1} , 
+												{"gamma",1} , 
+												{"initialization_mode",0} , 
+												{"numberofthreads",0}};	
 	vector<pair<size_t *, float *>> full_list_parameters(paramters_names.size()) ;
 	full_list_parameters[0].first = &numberOfAnts;
 	full_list_parameters[1].first = &numberOfIterations;
@@ -34,11 +37,15 @@ size_t reading_data(int argc, char *argv[], vector<vector<float>> &data,
 	full_list_parameters[6].first = &dynamic_radius_actived;
 	full_list_parameters[7].first = &th_neighb;
 	full_list_parameters[8].second = &kappa;
-	full_list_parameters[9].first = &numberofthreads;
+	full_list_parameters[9].second = &gamma;
+	full_list_parameters[10].first = &initialization_mode;
+	full_list_parameters[11].first = &numberofthreads;
 
 	//DEFUAL PARAMETERS VALUES
 	th_neighb = 5;
 	kappa = 0.8f;
+	gamma = 0.0f;
+	initialization_mode = 0;
 	numberofthreads = 16;
 	numberOfAnts = 5*5*5;
 	numberOfIterations = 100 ;

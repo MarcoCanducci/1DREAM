@@ -61,7 +61,7 @@ void computing_initial_particle_properties(vector<vector<float>> const &data,
   //Filling pso_number_neighbours
   printf("Step 1/6 \n");
   #pragma omp parallel for private(min_neighbours_number, max_neighbours_number, number_of_particles_to_use, dt) schedule(dynamic,10)
-  for(size_t idx_point = 0; idx_point < data.size(); idx_point++)
+  for(long long idx_point = 0; idx_point < static_cast<long long>(data.size()); idx_point++)
   {
     max_neighbours_number = 0;
     if(neighbourhoods[idx_point].size() > th_neighb)
@@ -100,7 +100,7 @@ void computing_initial_particle_properties(vector<vector<float>> const &data,
   interesting_particle.resize(data.size(),0);
   size_t idx_particle_aux;
   #pragma omp parallel for schedule(dynamic,10) private(idx_particle_aux)
-  for(size_t idx_point = 0; idx_point < data.size(); idx_point++)
+  for(long long idx_point = 0; idx_point < static_cast<long long>(data.size()); idx_point++)
   {
     idx_particle_aux = pso_number_particles;
     while(idx_particle_aux > 0 && pso_neigbourhoods_number[idx_particle_aux-1][idx_point] > 0)
@@ -126,7 +126,7 @@ void computing_initial_particle_properties(vector<vector<float>> const &data,
   printf("Step 3/6 \n");
   
   #pragma omp parallel for schedule(dynamic,10)
-  for(size_t idx_point = 0; idx_point < data.size(); idx_point++)
+  for(long long idx_point = 0; idx_point < static_cast<long long>(data.size()); idx_point++)
   {
     vector<size_t> const &neighbourhood = neighbourhoods[idx_point];
     size_t aux_start_idx = interesting_particle[idx_point];
@@ -203,7 +203,7 @@ void computing_initial_particle_properties(vector<vector<float>> const &data,
 		size_t myseed1;
 		size_t random_number;
     #pragma omp for schedule(dynamic,10)
-    for(size_t idx_point = 0; idx_point < data.size(); idx_point++)
+    for(long long idx_point = 0; idx_point < static_cast<long long>(data.size()); idx_point++)
     {
       vector<size_t> const &neighbourhood = neighbourhoods[idx_point];
       size_t aux_start_idx = interesting_particle[idx_point];
@@ -352,7 +352,7 @@ void computing_initial_particle_properties(vector<vector<float>> const &data,
 	size_t aux_counter = 0;
 	float mean_distances = 0.0f;
   #pragma omp parallel for schedule(dynamic,10) private(aux_normalization_radii_quality)
-  for(size_t idx_point = 0; idx_point < data.size(); idx_point++)
+  for(long long idx_point = 0; idx_point < static_cast<long long>(data.size()); idx_point++)
   {
     aux_normalization_radii_quality = 0.0f;
     

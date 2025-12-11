@@ -1,6 +1,6 @@
 #include "LAAT.h"
 
-#include "nanoflann/nanoflann.hpp"
+#include "nanoflann.hpp"
 #include "utils/KDTreeVectorOfVectorsAdaptor.h"
 
 /**
@@ -26,8 +26,13 @@
  * @param beta_antmovement the inverse temperature as used in formula (8)
  * @param kappa tuning parameter for the relative importance of the
  *   influence of the alignment and pheromone terms as used in formula (7)
+ * @param gamma tuning parameter for the relative importance of the
+ *   external criterion (external_weights). The final weights are:
+ *   lambda1 = (1-kappa)*(1-gamma), lambda2 = kappa*(1-gamma), lambda3 = gamma
  * @param pheromone vector containing the pheromone of each data point, will
  *   be updated by this function
+ * @param external_weights vector containing per-point external scalar values
+ *   used as a third criterion in the ant jump probability calculation
  */
 
 #pragma omp declare reduction(vec_float_plus : std::vector<float> : \
@@ -39,52 +44,91 @@ void antSearch(vector<vector<float>> const &data,
 			   vector<size_t> const &antLocations,
 			   size_t numberOfSteps,
 			   float kappa,
+			   float gamma,
 			   vector<float> &pheromone,
 			   float pheromone_delivered,
 			   vector<size_t> &interesting_particle,
 			   vector<vector<float>> &preferences,
 			   vector<vector<float>> &quality_pheromone,
+			   vector<float> const &external_weights,
 				 size_t idx_epoch)
 {
 	vector<float> accumulatedPheromone(data.size(),0.0f);
 
-	// Computing neighbourhoods pheromones
-	vector<float> neighbourhoods_pheromone(data.size());
-	float aux_sum_pheromone;
+	// Check if external weights are provided
+	bool use_external_weights = !external_weights.empty() && (gamma > 0.0f);
 
-	#pragma omp parallel for private(aux_sum_pheromone) schedule(dynamic,10)
-	for (size_t idx_particle = 0; idx_particle < data.size(); idx_particle++)
+	// Computing neighbourhoods pheromones and external weights sums for normalization
+	vector<float> neighbourhoods_pheromone(data.size());
+	vector<float> neighbourhoods_external_weights_sum;
+	if (use_external_weights) {
+		neighbourhoods_external_weights_sum.resize(data.size());
+	}
+	float aux_sum_pheromone;
+	float aux_sum_external_weights;
+
+	#pragma omp parallel for private(aux_sum_pheromone, aux_sum_external_weights) schedule(dynamic,10)
+	for (long long idx_particle = 0; idx_particle < static_cast<long long>(data.size()); idx_particle++)
 	{
 		aux_sum_pheromone = 0.0f;
+		aux_sum_external_weights = 0.0f;
 		vector<size_t> const &neighbourhood = neighbourhoods[idx_particle];
 		for (size_t idx_neighbour = 0; idx_neighbour < neighbourhood.size(); idx_neighbour++)
 		{
 			aux_sum_pheromone += pheromone[neighbourhood[idx_neighbour]];
+			if (use_external_weights) {
+				aux_sum_external_weights += external_weights[neighbourhood[idx_neighbour]];
+			}
 		}
 		neighbourhoods_pheromone[idx_particle] = aux_sum_pheromone;
+		// Avoid division by zero - if all external weights are zero, set sum to 1
+		if (use_external_weights) {
+			neighbourhoods_external_weights_sum[idx_particle] = (aux_sum_external_weights > 0.0f) ? aux_sum_external_weights : 1.0f;
+		}
 	}
 
 	// Pre computation of accumulated probabilities
 	float ant_jump_probabilities;
 	vector<vector<float>> accumulated_ant_jump_probabilities(data.size());
 	float normalizedPheromone;
+	float normalizedExternalWeight;
+	float lambda1, lambda2, lambda3;
+
+	// Compute lambda weights based on whether external weights are used
+	// If external weights not provided: lambda1 = (1-kappa), lambda2 = kappa, lambda3 = 0
+	// If external weights provided: lambda1 = (1-kappa)*(1-gamma), lambda2 = kappa*(1-gamma), lambda3 = gamma
+	float effective_gamma = use_external_weights ? gamma : 0.0f;
  
-	#pragma omp parallel for private(normalizedPheromone,ant_jump_probabilities) schedule(dynamic,10)
-	for (size_t particle_idx = 0; particle_idx < data.size(); particle_idx++)
+	#pragma omp parallel for private(normalizedPheromone,normalizedExternalWeight,lambda1,lambda2,lambda3,ant_jump_probabilities) schedule(dynamic,10)
+	for (long long particle_idx = 0; particle_idx < static_cast<long long>(data.size()); particle_idx++)
 	{
 		if (interesting_particle[particle_idx] == 1)
 		{
 			vector<size_t> const &neighbourhood = neighbourhoods[particle_idx];
 			accumulated_ant_jump_probabilities[particle_idx].resize(neighbourhood.size());
 
+			lambda1 = (1.0f - kappa) * (1.0f - effective_gamma);
+			lambda2 = kappa * (1.0f - effective_gamma);
+			lambda3 = effective_gamma;
+
 			normalizedPheromone = pheromone[neighbourhood[0]] / neighbourhoods_pheromone[particle_idx];
-			ant_jump_probabilities = expf(beta_antmovement * ((1.0f - kappa) * normalizedPheromone + kappa * preferences[particle_idx][0]));
+			if (use_external_weights) {
+				normalizedExternalWeight = external_weights[neighbourhood[0]] / neighbourhoods_external_weights_sum[particle_idx];
+				ant_jump_probabilities = expf(beta_antmovement * (lambda1 * normalizedPheromone + lambda2 * preferences[particle_idx][0] + lambda3 * normalizedExternalWeight));
+			} else {
+				ant_jump_probabilities = expf(beta_antmovement * (lambda1 * normalizedPheromone + lambda2 * preferences[particle_idx][0]));
+			}
 			accumulated_ant_jump_probabilities[particle_idx][0] = ant_jump_probabilities;
 
 			for (size_t neighbour_idx = 1; neighbour_idx < neighbourhood.size(); neighbour_idx++)
 			{
 				normalizedPheromone = pheromone[neighbourhood[neighbour_idx]] / neighbourhoods_pheromone[particle_idx];
-				ant_jump_probabilities = expf(beta_antmovement * ((1.0f - kappa) * normalizedPheromone + kappa * preferences[particle_idx][neighbour_idx]));
+				if (use_external_weights) {
+					normalizedExternalWeight = external_weights[neighbourhood[neighbour_idx]] / neighbourhoods_external_weights_sum[particle_idx];
+					ant_jump_probabilities = expf(beta_antmovement * (lambda1 * normalizedPheromone + lambda2 * preferences[particle_idx][neighbour_idx] + lambda3 * normalizedExternalWeight));
+				} else {
+					ant_jump_probabilities = expf(beta_antmovement * (lambda1 * normalizedPheromone + lambda2 * preferences[particle_idx][neighbour_idx]));
+				}
 				accumulated_ant_jump_probabilities[particle_idx][neighbour_idx] = accumulated_ant_jump_probabilities[particle_idx][neighbour_idx - 1] + ant_jump_probabilities;
 			}
 
@@ -202,7 +246,7 @@ void antSearch(vector<vector<float>> const &data,
 	} // pragma omp parallel end
 
 	#pragma omp parallel for
-	for (size_t idx = 0; idx < data.size(); ++idx)
+	for (long long idx = 0; idx < static_cast<long long>(data.size()); ++idx)
 	{
 		if (accumulatedPheromone[idx])
 		{
@@ -212,5 +256,6 @@ void antSearch(vector<vector<float>> const &data,
 
 	// Free memory
 	vector<float> ().swap(accumulatedPheromone);
-  vector<float>().swap(neighbourhoods_pheromone);
+	vector<float>().swap(neighbourhoods_pheromone);
+	vector<float>().swap(neighbourhoods_external_weights_sum);
 }

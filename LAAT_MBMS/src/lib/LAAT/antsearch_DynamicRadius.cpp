@@ -1,6 +1,6 @@
 #include "LAAT.h"
 
-#include "nanoflann/nanoflann.hpp"
+#include "nanoflann.hpp"
 #include "utils/KDTreeVectorOfVectorsAdaptor.h"
 
 /**
@@ -107,15 +107,32 @@ void compute_local_preference(vector<vector<float>> const &data, vector<size_t> 
   }
 }
 
-void compute_accumulated_jump_probability(vector<float> &local_pheromone, vector<float> &local_prefence , vector<float> &local_accum_jump_probability, float kappa )
+void compute_accumulated_jump_probability(vector<float> &local_pheromone, vector<float> &local_prefence, vector<float> &local_external_weights, vector<float> &local_accum_jump_probability, float kappa, float gamma, bool use_external_weights)
 {
-	float ant_jump_probabilities = expf(beta_antmovement * ((1.0f - kappa) * local_pheromone[0] + kappa * local_prefence[0]));
+	// Compute lambda weights based on whether external weights are used
+	// If external weights not provided: lambda1 = (1-kappa), lambda2 = kappa, lambda3 = 0
+	// If external weights provided: lambda1 = (1-kappa)*(1-gamma), lambda2 = kappa*(1-gamma), lambda3 = gamma
+	float effective_gamma = use_external_weights ? gamma : 0.0f;
+	float lambda1 = (1.0f - kappa) * (1.0f - effective_gamma);
+	float lambda2 = kappa * (1.0f - effective_gamma);
+	float lambda3 = effective_gamma;
+	
+	float ant_jump_probabilities;
+	if (use_external_weights) {
+		ant_jump_probabilities = expf(beta_antmovement * (lambda1 * local_pheromone[0] + lambda2 * local_prefence[0] + lambda3 * local_external_weights[0]));
+	} else {
+		ant_jump_probabilities = expf(beta_antmovement * (lambda1 * local_pheromone[0] + lambda2 * local_prefence[0]));
+	}
 	local_accum_jump_probability[0] = ant_jump_probabilities;
 
 
 	for (size_t neighbour_idx = 1; neighbour_idx < local_pheromone.size(); neighbour_idx++)
 	{
-		ant_jump_probabilities = expf(beta_antmovement * ((1.0f - kappa) * neighbour_idx + kappa * local_prefence[neighbour_idx]));
+		if (use_external_weights) {
+			ant_jump_probabilities = expf(beta_antmovement * (lambda1 * local_pheromone[neighbour_idx] + lambda2 * local_prefence[neighbour_idx] + lambda3 * local_external_weights[neighbour_idx]));
+		} else {
+			ant_jump_probabilities = expf(beta_antmovement * (lambda1 * local_pheromone[neighbour_idx] + lambda2 * local_prefence[neighbour_idx]));
+		}
 		local_accum_jump_probability[neighbour_idx] = local_accum_jump_probability[neighbour_idx - 1] + ant_jump_probabilities;
 	}
 
@@ -165,6 +182,7 @@ void antsearch_DynamicRadius(vector<vector<float>> const &data,
 	      			vector<size_t> &antLocations,
 	      			size_t numberOfSteps,
 	      			float kappa,
+	      			float gamma,
 							vector<float> &pheromone,
 	      			float pheromone_delivered,
         			vector<size_t> &interesting_particle,
@@ -173,9 +191,13 @@ void antsearch_DynamicRadius(vector<vector<float>> const &data,
         			vector<vector<size_t>> &pso_neigbourhoods_number,
         			vector<vector<float>> &pso_radii_accumulated_probabilities,
 							size_t pso_number_particles,
+							vector<float> const &external_weights,
 							size_t idx_epoch)
 {
 	vector<float> accumulatedPheromone(data.size(),0.0f);
+
+	// Check if external weights are provided
+	bool use_external_weights = !external_weights.empty() && (gamma > 0.0f);
 
 	#pragma omp parallel
 	{
@@ -245,6 +267,25 @@ void antsearch_DynamicRadius(vector<vector<float>> const &data,
 						vector <float> local_pheromone(neighbourhood.size());
 						compute_local_pheromone(neighbourhood, pheromone , local_pheromone );
 
+						//COMPUTING LOCAL EXTERNAL WEIGHTS (only if external weights are provided)
+						vector <float> local_external_weights;
+						if (use_external_weights) {
+							local_external_weights.resize(neighbourhood.size());
+							float aux_sum_external_weights = 0.0f;
+							for (size_t idx_neighbour = 0; idx_neighbour < neighbourhood.size(); idx_neighbour++)
+							{
+								local_external_weights[idx_neighbour] = external_weights[neighbourhood[idx_neighbour]];
+								aux_sum_external_weights += external_weights[neighbourhood[idx_neighbour]];
+							}
+							// Normalize external weights (avoid division by zero)
+							if (aux_sum_external_weights > 0.0f) {
+								for (size_t idx_neighbour = 0; idx_neighbour < neighbourhood.size(); idx_neighbour++)
+								{
+									local_external_weights[idx_neighbour] /= aux_sum_external_weights;
+								}
+							}
+						}
+
 						//COMPUTINGN LOCAL PREFERENCE
 						vector <float> local_prefence(neighbourhood.size());
 						vector <float> local_quality_pheromone;
@@ -256,7 +297,7 @@ void antsearch_DynamicRadius(vector<vector<float>> const &data,
 
 						//COMPUTINGN ACCUM PROBABILITY
 						vector <float> local_accum_jump_probability(neighbourhood.size());
-						compute_accumulated_jump_probability(local_pheromone, local_prefence , local_accum_jump_probability, kappa );
+						compute_accumulated_jump_probability(local_pheromone, local_prefence, local_external_weights, local_accum_jump_probability, kappa, gamma, use_external_weights);
 
 						myseed3++;
 
@@ -334,7 +375,7 @@ void antsearch_DynamicRadius(vector<vector<float>> const &data,
 	} // pragma omp parallel end
 
 	#pragma omp parallel for
-	for (size_t idx = 0; idx < data.size(); ++idx)
+	for (long long idx = 0; idx < static_cast<long long>(data.size()); ++idx)
 	{
 		if (accumulatedPheromone[idx])
 		{

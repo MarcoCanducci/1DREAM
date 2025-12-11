@@ -1,6 +1,6 @@
 #include "LAAT.h"
 
-#include "nanoflann/nanoflann.hpp"
+#include "nanoflann.hpp"
 #include "utils/KDTreeVectorOfVectorsAdaptor.h"
 /**
  * Perform preprocessing steps as defined in Algorithm 1.
@@ -101,7 +101,7 @@ void preprocess(vector<vector<float>> const &data,
     eigenValues.resize(data.size());
 
     #pragma omp parallel for schedule(dynamic,10)
-    for (size_t idx_point = 0; idx_point < data.size(); idx_point++)
+    for (long long idx_point = 0; idx_point < static_cast<long long>(data.size()); idx_point++)
     {
       vector<size_t> const &neighbourhood = neighbourhoods[idx_point];
 
@@ -179,7 +179,7 @@ void preprocess(vector<vector<float>> const &data,
 
 
       #pragma omp for schedule(dynamic,10)
-      for (size_t idx_point = 0; idx_point < data.size(); idx_point++)
+      for (long long idx_point = 0; idx_point < static_cast<long long>(data.size()); idx_point++)
       {
         if (interesting_particle[idx_point] == 1)
         {

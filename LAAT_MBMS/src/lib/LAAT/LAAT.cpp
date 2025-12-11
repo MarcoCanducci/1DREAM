@@ -48,6 +48,10 @@ vector<float> LocallyAlignedAntTechnique(
 	size_t dynamic_radius_actived,
 	size_t th_neighb,
 	float kappa,
+	float gamma,
+	vector<float> const &external_weights,
+	size_t initialization_mode,
+	vector<size_t> const &custom_init_indices,
 	size_t numberofthreads)
 {
 	cout << endl << endl <<  "Running LAAT, version 1.4.1 (04-04-2025)" << endl << endl;
@@ -109,6 +113,70 @@ vector<float> LocallyAlignedAntTechnique(
 	clock_gettime( CLOCK_REALTIME, &GL_finish);
 	GL_times[0] += ( GL_finish.tv_sec - GL_start.tv_sec ) + ( GL_finish.tv_nsec - GL_start.tv_nsec )/ 1000000000.;
 
+	// Validate and filter custom_init_indices if initialization_mode == 1
+	// Only keep indices that point to "interesting" particles to avoid segmentation faults
+	vector<size_t> validated_custom_init_indices;
+	size_t effective_initialization_mode = initialization_mode;
+	
+	if (initialization_mode == 1 && custom_init_indices.size() > 0)
+	{
+		size_t original_size = custom_init_indices.size();
+		size_t filtered_count = 0;
+		
+		for (size_t i = 0; i < custom_init_indices.size(); i++)
+		{
+			size_t idx = custom_init_indices[i];
+			
+			// Check if index is within bounds
+			if (idx >= data.size())
+			{
+				filtered_count++;
+				continue;
+			}
+			
+			// Check if particle is "interesting" based on the mode
+			bool is_valid = false;
+			if (dynamic_radius_actived == 0)
+			{
+				// In static radius mode, interesting_particle[idx] == 1 means valid
+				is_valid = (interesting_particle[idx] == 1);
+			}
+			else
+			{
+				// In dynamic radius mode, interesting_particle[idx] < pso_number_particles means valid
+				is_valid = (interesting_particle[idx] < pso_number_particles);
+			}
+			
+			if (is_valid)
+			{
+				validated_custom_init_indices.push_back(idx);
+			}
+			else
+			{
+				filtered_count++;
+			}
+		}
+		
+		if (filtered_count > 0)
+		{
+			printf("\nWARNING: %zu out of %zu custom initialization indices were filtered out.\n", 
+				   filtered_count, original_size);
+			printf("         These indices either exceed data bounds or point to particles with\n");
+			printf("         insufficient neighbors (not 'interesting' particles).\n");
+		}
+		
+		if (validated_custom_init_indices.empty())
+		{
+			printf("\nWARNING: All custom initialization indices were invalid!\n");
+			printf("         Falling back to standard probability-based initialization (mode 0).\n\n");
+			effective_initialization_mode = 0;
+		}
+		else
+		{
+			printf("\nUsing %zu valid custom initialization indices (out of %zu provided).\n", 
+				   validated_custom_init_indices.size(), original_size);
+		}
+	}
 
 	clock_gettime( CLOCK_REALTIME, &GL_start);
 	// iterative step
@@ -134,7 +202,7 @@ vector<float> LocallyAlignedAntTechnique(
 	{
 		// place ants on random points using the 'probability_std' variable
 		clock_gettime( CLOCK_REALTIME, &GL_start);
-		initializeAnts(antLocations, probability_std, idx_epoch);
+		initializeAnts(antLocations, probability_std, idx_epoch, effective_initialization_mode, validated_custom_init_indices);
 		clock_gettime( CLOCK_REALTIME, &GL_finish);
 		GL_times[1] += ( GL_finish.tv_sec - GL_start.tv_sec ) + ( GL_finish.tv_nsec - GL_start.tv_nsec )/ 1000000000.;
 
@@ -147,11 +215,13 @@ vector<float> LocallyAlignedAntTechnique(
 				antLocations,
 				numberOfSteps,
 				kappa,
+				gamma,
 				pheromone,
 				pheromone_delivered,
 				interesting_particle,
 				preferences,
 				quality_pheromone,
+				external_weights,
 				idx_epoch);
 		}
 		else if(dynamic_radius_actived == 1)
@@ -161,6 +231,7 @@ vector<float> LocallyAlignedAntTechnique(
 				antLocations,
 				numberOfSteps,
 				kappa,
+				gamma,
 				pheromone,
 				pheromone_delivered,
 				interesting_particle,
@@ -169,6 +240,7 @@ vector<float> LocallyAlignedAntTechnique(
 				pso_neigbourhoods_number,
 				pso_radii_accumulated_probabilities,
 				pso_number_particles,
+				external_weights,
 				idx_epoch);
 		}
 		clock_gettime( CLOCK_REALTIME, &GL_finish);

@@ -1,5 +1,5 @@
 #include "LAAT.h"
-#include "nanoflann/nanoflann.hpp"
+#include "nanoflann.hpp"
 #include "utils/KDTreeVectorOfVectorsAdaptor.h"
 using namespace nanoflann;
 
@@ -42,9 +42,9 @@ void rangeSearch(vector<vector<float>> const &data,
   neighbourhoods_distances.resize(data.size());
   
 #pragma omp parallel for schedule(dynamic,10)
-  for (size_t idx = 0; idx < data.size(); idx++)
+  for (long long idx = 0; idx < static_cast<long long>(data.size()); idx++)
   {
-    vector<pair<size_t, float>> matches;
+    vector<nanoflann::ResultItem<size_t, float>> matches;
 
 
     vector<size_t> &neighbourhood = neighbourhoods[idx];
@@ -54,7 +54,7 @@ void rangeSearch(vector<vector<float>> const &data,
     size_t nMatches = KNN.index->radiusSearch(&data[idx][0],
 					      neighbdradii2,
 					      matches,
-					      SearchParams());
+					      SearchParameters());
     
     size_t counter_dist_0 = 1;
 

@@ -4,64 +4,90 @@
  * choose the initial points so that their neighborhood size is bigger
  * or equal to the median number of neighbors.
  *
- * @param data vector containing all data points
- * @param ants vector of ants to choose the initial points for
  * @param antLocations vector to store the initial locations in
+ * @param probability_std vector of probability-index pairs for standard initialization
+ * @param idx_epoch current epoch index for random seed
+ * @param initialization_mode 0 = standard (probability-based), 1 = custom indices
+ * @param custom_init_indices vector of indices to sample from when initialization_mode=1
  */
 void initializeAnts(vector<size_t> &antLocations,
                     vector<pair<float,size_t>> &probability_std,
-										size_t idx_epoch)
+										size_t idx_epoch,
+										size_t initialization_mode,
+										vector<size_t> const &custom_init_indices)
 {
-  // Case where the ants use the particles use the probability associated with his
-  // standard devaition 'probability_std'
-
-  vector <float> acummprob(probability_std.size());
-  acummprob[0] = probability_std[0].first;
-  
-  for (size_t idx = 1; idx < probability_std.size(); idx++)
+  if (initialization_mode == 1 && custom_init_indices.size() > 0)
   {
-    acummprob[idx] = acummprob[idx-1] + probability_std[idx].first;
-  }
+    // Custom initialization mode: sample from provided indices with replacement
+    size_t myseed1 = _GLOBAL_SEED_ + idx_epoch * antLocations.size();
+    size_t myseed2;
+    size_t custom_idx_size = custom_init_indices.size();
 
-  #pragma omp parallel
-  {
-    float target_probability;
-    size_t search_idx;
-		size_t myseed1 = _GLOBAL_SEED_ + idx_epoch * antLocations.size();
-		size_t myseed2;
-
-    #pragma omp for
-    for (size_t ant_idx = 0; ant_idx < antLocations.size(); ant_idx++)
+    #pragma omp parallel private(myseed2)
     {
-			myseed2 = myseed1 + ant_idx;
-			target_probability = floatRand(myseed2);
-      search_idx = (size_t) (target_probability * (probability_std.size() - 1 ));
-      
-      if (acummprob[search_idx] < target_probability)
+      #pragma omp for
+      for (size_t ant_idx = 0; ant_idx < antLocations.size(); ant_idx++)
       {
-        for(size_t aux_idx = search_idx; aux_idx < probability_std.size()-1; aux_idx++)
-        {
-          search_idx++;
-          if (acummprob[search_idx] >= target_probability)
-          {
-            aux_idx = probability_std.size()-2;
-          }
-        }
+        myseed2 = myseed1 + ant_idx;
+        size_t random_idx = sizetRand(myseed2, custom_idx_size);
+        antLocations[ant_idx] = custom_init_indices[random_idx];
       }
-      else if(acummprob[search_idx] > target_probability)
+    }
+  }
+  else
+  {
+    // Standard initialization mode: use probability distribution
+    // Case where the ants use the particles use the probability associated with his
+    // standard devaition 'probability_std'
+
+    vector <float> acummprob(probability_std.size());
+    acummprob[0] = probability_std[0].first;
+    
+    for (size_t idx = 1; idx < probability_std.size(); idx++)
+    {
+      acummprob[idx] = acummprob[idx-1] + probability_std[idx].first;
+    }
+
+    #pragma omp parallel
+    {
+      float target_probability;
+      size_t search_idx;
+      size_t myseed1 = _GLOBAL_SEED_ + idx_epoch * antLocations.size();
+      size_t myseed2;
+
+      #pragma omp for
+      for (size_t ant_idx = 0; ant_idx < antLocations.size(); ant_idx++)
       {
-        for(size_t aux_idx = search_idx; aux_idx > 0; aux_idx--)
+        myseed2 = myseed1 + ant_idx;
+        target_probability = floatRand(myseed2);
+        search_idx = (size_t) (target_probability * (probability_std.size() - 1 ));
+        
+        if (acummprob[search_idx] < target_probability)
         {
-          search_idx--;
-          if (acummprob[search_idx] <= target_probability)
+          for(size_t aux_idx = search_idx; aux_idx < probability_std.size()-1; aux_idx++)
           {
-            aux_idx = 1;
             search_idx++;
+            if (acummprob[search_idx] >= target_probability)
+            {
+              aux_idx = probability_std.size()-2;
+            }
           }
         }
+        else if(acummprob[search_idx] > target_probability)
+        {
+          for(size_t aux_idx = search_idx; aux_idx > 0; aux_idx--)
+          {
+            search_idx--;
+            if (acummprob[search_idx] <= target_probability)
+            {
+              aux_idx = 1;
+              search_idx++;
+            }
+          }
+        }
+        //antLocations[ant_idx] = search_idx;
+        antLocations[ant_idx] = probability_std[search_idx].second;
       }
-      //antLocations[ant_idx] = search_idx;
-      antLocations[ant_idx] = probability_std[search_idx].second;
     }
   }
 }

@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Name: LAAT-MBMS
+Version: 1.3.2
+Summary: LAAT_MBMS module containing the LAAT and MBMS algorithms.
+Home-page: UNKNOWN
+License: UNKNOWN
+Platform: UNKNOWN
+Provides-Extra: test
+
+A module containing the Locally Aligned Ant Technique (LAAT) and Manifold Blurring Mean Shift (MBMS) algorithms. These algorithms can be used together to study manifold within large datasets, for example to study the structure of the cosmic web.
+
